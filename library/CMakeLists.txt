@@ -9,6 +9,8 @@ add_library(tiny_linker_library
         src/ExecutableFile.cpp
         src/ExecutableFileImpl.cpp
         src/TextSection.cpp
-        src/TextSectionImpl.cpp)
+        src/TextSectionImpl.cpp
+        src/Linker.cpp
+        src/LinkerImpl.cpp)
 
 target_include_directories(tiny_linker_library PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
