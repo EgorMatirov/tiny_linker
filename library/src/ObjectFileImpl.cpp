@@ -4,12 +4,12 @@
 
 namespace tiny_linker {
 
-    ObjectFileImpl::ObjectFileImpl(const std::shared_ptr<std::ifstream> &DataStream) : DataStream(DataStream) {
-        auto elfHeader = getElfHeader(DataStream);
+    ObjectFileImpl::ObjectFileImpl(const std::shared_ptr<std::ifstream> &dataStream) : DataStream(dataStream) {
+        auto elfHeader = GetElfHeader(dataStream);
 
         auto sectionHeaderTableOffset = elfHeader->e_shoff;
         auto sectionHeadersCount = elfHeader->e_shnum;
-        auto sectionHeaderStringTableOffset = getSectionHeaderNamesTableOffset(std::move(elfHeader));
+        auto sectionHeaderStringTableOffset = GetSectionHeaderNamesTableOffset(std::move(elfHeader));
 
         for (int i = 0; i < sectionHeadersCount; ++i) {
             const auto sectionHeader = ReadSectionHeaderAt(sectionHeaderTableOffset, i);
@@ -17,10 +17,7 @@ namespace tiny_linker {
             const auto sectionName = ReadStringAt(sectionNameOffset);
 
             if (sectionName == ".text") {
-                TextHeader = sectionHeader;
-                Text = std::shared_ptr<char[]>(new char[TextHeader->sh_size]);
-                DataStream->seekg(TextHeader->sh_offset);
-                DataStream->read(Text.get(), TextHeader->sh_size);
+                ReadTextSection(dataStream, sectionHeader);
             } else if (sectionName == ".rel.text") {
                 SetEntries(sectionHeader, Relocations);
             } else if (sectionName == ".symtab") {
@@ -31,45 +28,30 @@ namespace tiny_linker {
         }
     }
 
+    void ObjectFileImpl::ReadTextSection(const std::shared_ptr<std::ifstream> &dataStream,
+                                         const std::shared_ptr<llvm::ELF::Elf32_Shdr> &textSectionHeader) {
+        auto text = std::unique_ptr<char[]>(new char[textSectionHeader->sh_size]);
+        dataStream->seekg(textSectionHeader->sh_offset);
+        dataStream->read(text.get(), textSectionHeader->sh_size);
+
+        TextSection = std::make_shared<tiny_linker::TextSection>(move(text), textSectionHeader->sh_size);
+    }
+
     std::unique_ptr<llvm::ELF::Elf32_Ehdr>
-    ObjectFileImpl::getElfHeader(const std::shared_ptr<std::ifstream> &DataStream) const {
+    ObjectFileImpl::GetElfHeader(const std::shared_ptr<std::ifstream> &dataStream) const {
         auto elfHeader = std::make_unique<llvm::ELF::Elf32_Ehdr>();
-        DataStream->read((char *) elfHeader.get(), sizeof(*elfHeader));
+        dataStream->read((char *) elfHeader.get(), sizeof(*elfHeader));
         return elfHeader;
     }
 
     llvm::ELF::Elf32_Off
-    ObjectFileImpl::getSectionHeaderNamesTableOffset(std::unique_ptr<llvm::ELF::Elf32_Ehdr> elfHeader) {
+    ObjectFileImpl::GetSectionHeaderNamesTableOffset(std::unique_ptr<llvm::ELF::Elf32_Ehdr> elfHeader) {
         auto sectionHeaderStringTable = ReadSectionHeaderAt(elfHeader->e_shoff, elfHeader->e_shstrndx);
         return sectionHeaderStringTable->sh_offset;
     }
 
-    std::shared_ptr<llvm::ELF::Elf32_Shdr> ObjectFileImpl::GetTextHeader() const {
-        return TextHeader;
-    }
-
     std::string ObjectFileImpl::GetStringTableEntry(int offset) {
         return ReadStringAt(StringTableHeader->sh_offset + offset);
-    }
-
-    int ObjectFileImpl::ReadAddressFromTextSectionAt(int position) {
-        int address = 0;
-        // Конвертируем из litle endian
-        for (int i = 0; i < 4; ++i) {
-            address |= (unsigned) (Text.get()[position + i] << (8 * i));
-        }
-        return address;
-    }
-
-    void ObjectFileImpl::WriteAddressToTextSectionAt(int position, int address) {
-        // Конвертируем в little endian
-        for (int i = 0; i < 4; ++i) {
-            Text.get()[position + i] = (char) (address >> (i * 8));
-        }
-    }
-
-    void ObjectFileImpl::WriteText(std::fstream &stream) {
-        stream.write(Text.get(), TextHeader->sh_size);
     }
 
     std::shared_ptr<llvm::ELF::Elf32_Shdr> ObjectFileImpl::GetStringTableHeader() const {
@@ -113,5 +95,9 @@ namespace tiny_linker {
             DataStream->read((char *) entry.get(), entrySize);
             container.push_back(entry);
         }
+    }
+
+    std::shared_ptr<TextSection> ObjectFileImpl::GetTextSection() const {
+        return TextSection;
     }
 }
