@@ -9,12 +9,13 @@ namespace tiny_linker {
     public:
         explicit ExecutableFileImpl() = default;
 
-        explicit ExecutableFileImpl(std::shared_ptr<tiny_linker::TextSection> textSection);
+        explicit ExecutableFileImpl(std::shared_ptr<tiny_linker::TextSection> textSection, size_t entryPointOffset);
 
         void Write(std::fstream &stream);
 
     private:
         std::shared_ptr<tiny_linker::TextSection> TextSection;
+        size_t EntryPointOffset;
     };
 
     void ExecutableFileImpl::Write(std::fstream &stream) {
@@ -41,7 +42,7 @@ namespace tiny_linker {
         const auto headersSize = sizeof(llvm::ELF::Elf32_Ehdr) +
                                  sizeof(llvm::ELF::Elf32_Shdr) * elfHeader.e_shnum +
                                  sizeof(llvm::ELF::Elf32_Phdr) * elfHeader.e_phnum;
-        elfHeader.e_entry = entry + headersSize;
+        elfHeader.e_entry = entry + headersSize + EntryPointOffset;
 
         stream.write((char *) &elfHeader, sizeof(elfHeader));
 
@@ -71,6 +72,7 @@ namespace tiny_linker {
         stream.write(TextSection->GetBytes().get(), TextSection->GetSize());
     }
 
-    ExecutableFileImpl::ExecutableFileImpl(std::shared_ptr<tiny_linker::TextSection> textSection)
-            : TextSection(std::move(textSection)) {}
+    ExecutableFileImpl::ExecutableFileImpl(std::shared_ptr<tiny_linker::TextSection> textSection,
+                                           size_t entryPointOffset)
+            : TextSection(std::move(textSection)), EntryPointOffset(entryPointOffset) {}
 }

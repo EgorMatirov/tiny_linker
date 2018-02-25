@@ -7,7 +7,7 @@ namespace tiny_linker {
         Pimpl()->Write(stream);
     }
 
-    ExecutableFile::ExecutableFile(std::shared_ptr<tiny_linker::TextSection> textSection) : m_pImpl(
-            new ExecutableFileImpl(std::move(textSection))) {}
+    ExecutableFile::ExecutableFile(std::shared_ptr<tiny_linker::TextSection> textSection, size_t entryPointOffset)
+            : m_pImpl(new ExecutableFileImpl(std::move(textSection), entryPointOffset)) {}
 
 }
