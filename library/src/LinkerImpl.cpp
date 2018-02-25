@@ -117,6 +117,24 @@ namespace tiny_linker {
                 }
             }
         }
-        return std::make_unique<tiny_linker::ExecutableFile>(resultTextSection);
+
+        std::optional<size_t> entryPointOffset;
+        for (size_t currentObjectFileIndex = 0; currentObjectFileIndex < objectFiles.size(); ++currentObjectFileIndex) {
+            const auto &currentObjectFile = objectFiles[currentObjectFileIndex];
+            for (const std::shared_ptr<llvm::ELF::Elf32_Sym> &symbol : currentObjectFile->GetSymbols()) {
+                const auto sourceSymbolName = currentObjectFile->GetStringTableEntry(symbol->st_name);
+                if (sourceSymbolName == "main" && symbol->getBinding() == llvm::ELF::STB_GLOBAL) {
+                    entryPointOffset = offsets[currentObjectFileIndex] + symbol->st_value;
+                }
+            }
+        }
+
+        if(!entryPointOffset)
+        {
+            std::cout << "Cannot find entry point!";
+            return nullptr;
+        }
+
+        return std::make_unique<tiny_linker::ExecutableFile>(resultTextSection, entryPointOffset.value());
     }
 }

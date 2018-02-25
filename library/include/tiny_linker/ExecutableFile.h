@@ -12,7 +12,7 @@ namespace tiny_linker {
 
     class ExecutableFile {
     public:
-        explicit ExecutableFile(std::shared_ptr<tiny_linker::TextSection> textSection);
+        explicit ExecutableFile(std::shared_ptr<tiny_linker::TextSection> textSection, size_t entryPointOffset);
 
         void Write(std::fstream &stream);
 
