@@ -1,15 +1,23 @@
 #include <llvm/BinaryFormat/ELF.h>
 
 #include <fstream>
+#include <tiny_linker/TextSection.h>
 
 namespace tiny_linker {
 
     class ExecutableFileImpl {
     public:
-        void Write(std::fstream &stream, unsigned int textSize);
+        explicit ExecutableFileImpl() = default;
+
+        explicit ExecutableFileImpl(std::shared_ptr<tiny_linker::TextSection> textSection);
+
+        void Write(std::fstream &stream);
+
+    private:
+        std::shared_ptr<tiny_linker::TextSection> TextSection;
     };
 
-    void ExecutableFileImpl::Write(std::fstream &stream, unsigned int textSize) {
+    void ExecutableFileImpl::Write(std::fstream &stream) {
         // Заголовок ELF + специфичная информация, которую менять не понадобится.
         char magic[] = {0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
         llvm::ELF::Elf32_Addr entry = 0x8048000; // Смещение в виртуальной памяти, по которому будет расположен бинарник.
@@ -37,7 +45,7 @@ namespace tiny_linker {
 
         stream.write((char *) &elfHeader, sizeof(elfHeader));
 
-        const auto size = textSize + headersSize;
+        const llvm::ELF::Elf32_Word size = (llvm::ELF::Elf32_Word) TextSection->GetSize() + headersSize;
 
         llvm::ELF::Elf32_Phdr programHeader{};
         // Данный сегмент - загружаемый - его необходимо загрузить в память
@@ -59,5 +67,10 @@ namespace tiny_linker {
         programHeader.p_align = size;
 
         stream.write((char *) &programHeader, sizeof(programHeader));
+
+        stream.write(TextSection->GetBytes().get(), TextSection->GetSize());
     }
+
+    ExecutableFileImpl::ExecutableFileImpl(std::shared_ptr<tiny_linker::TextSection> textSection)
+            : TextSection(std::move(textSection)) {}
 }

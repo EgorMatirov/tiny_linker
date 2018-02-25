@@ -49,3 +49,16 @@ TEST(object_file, read_symbols_names_correctly) {
     EXPECT_EQ(objectFile.GetStringTableEntry(objectFile.GetSymbols()[4]->st_name), "pro");
     EXPECT_EQ(objectFile.GetStringTableEntry(objectFile.GetSymbols()[5]->st_name), "main");
 }
+
+TEST(object_file, read_relocations_correctly) {
+    auto dataStream = std::make_shared<std::ifstream>("../../tests/data/helloworld.o", std::ifstream::binary);
+    tiny_linker::ObjectFile objectFile(dataStream);
+
+    EXPECT_EQ(objectFile.GetRelocations().size(), 2);
+
+    EXPECT_EQ(objectFile.GetRelocations()[0]->r_offset, 1);
+    EXPECT_EQ(objectFile.GetRelocations()[1]->r_offset, 6);
+
+    EXPECT_EQ(objectFile.GetRelocations()[0]->getSymbol(), 3);
+    EXPECT_EQ(objectFile.GetRelocations()[1]->getSymbol(), 4);
+}

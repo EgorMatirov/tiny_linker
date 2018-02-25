@@ -5,14 +5,14 @@
 #include <memory>
 #include <fstream>
 #include <vector>
+#include <tiny_linker/TextSection.h>
 
 
 namespace tiny_linker {
     class ObjectFileImpl {
-        std::shared_ptr<llvm::ELF::Elf32_Shdr> TextHeader = nullptr;
         std::shared_ptr<llvm::ELF::Elf32_Shdr> StringTableHeader = nullptr;
         std::shared_ptr<std::ifstream> DataStream = nullptr;
-        std::shared_ptr<char[]> Text = nullptr;
+        std::shared_ptr<TextSection> TextSection;
 
         std::shared_ptr<llvm::ELF::Elf32_Shdr>
         ReadSectionHeaderAt(llvm::ELF::Elf32_Off sectionHeaderTableOffset, int index);
@@ -24,33 +24,27 @@ namespace tiny_linker {
         // Читает строчку, начиная с данной позиции и до первого символа \0.
         std::string ReadStringAt(int position);
 
-        llvm::ELF::Elf32_Off getSectionHeaderNamesTableOffset(std::unique_ptr<llvm::ELF::Elf32_Ehdr> elfHeader);
+        llvm::ELF::Elf32_Off GetSectionHeaderNamesTableOffset(std::unique_ptr<llvm::ELF::Elf32_Ehdr> elfHeader);
+
+        void ReadTextSection(const std::shared_ptr<std::ifstream> &dataStream,
+                             const std::shared_ptr<llvm::ELF::Elf32_Shdr> &textSectionHeader);
 
     public:
-
         std::vector<std::shared_ptr<llvm::ELF::Elf32_Rel>> Relocations;
         std::vector<std::shared_ptr<llvm::ELF::Elf32_Sym>> Symbols;
 
         ~ObjectFileImpl() = default;
 
-        explicit ObjectFileImpl(const std::shared_ptr<std::ifstream> &DataStream);
+        explicit ObjectFileImpl(const std::shared_ptr<std::ifstream> &dataStream);
 
-        std::shared_ptr<llvm::ELF::Elf32_Shdr> GetTextHeader() const;
+        std::unique_ptr<llvm::ELF::Elf32_Ehdr> GetElfHeader(const std::shared_ptr<std::ifstream> &dataStream) const;
 
         std::shared_ptr<llvm::ELF::Elf32_Shdr> GetStringTableHeader() const;
 
+        std::shared_ptr<tiny_linker::TextSection> GetTextSection() const;
+
         // Возращает строчку по смещению в таблице строк
         std::string GetStringTableEntry(int offset);
-
-        // Читает адрес, начинающийся в позиции position в секции .text
-        int ReadAddressFromTextSectionAt(int position);
-
-        // Записывает адрес в позицию position в секции .text
-        void WriteAddressToTextSectionAt(int position, int address);
-
-        void WriteText(std::fstream &stream);
-
-        std::unique_ptr<llvm::ELF::Elf32_Ehdr> getElfHeader(const std::shared_ptr<std::ifstream> &DataStream) const;
     };
 }
 

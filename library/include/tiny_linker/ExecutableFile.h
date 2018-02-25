@@ -1,5 +1,5 @@
-#ifndef PROJECT_EXECUTABLEFILE_H
-#define PROJECT_EXECUTABLEFILE_H
+#ifndef TINY_LINKER_EXECUTABLEFILE_H
+#define TINY_LINKER_EXECUTABLEFILE_H
 
 #include <fstream>
 #include <memory>
@@ -7,13 +7,14 @@
 #include <llvm/BinaryFormat/ELF.h>
 
 namespace tiny_linker {
+    class TextSection;
     class ExecutableFileImpl;
 
     class ExecutableFile {
     public:
-        explicit ExecutableFile();
+        explicit ExecutableFile(std::shared_ptr<tiny_linker::TextSection> textSection);
 
-        void Write(std::fstream &stream, llvm::ELF::Elf32_Word text_size);
+        void Write(std::fstream &stream);
 
     private:
         const ExecutableFileImpl *Pimpl() const { return m_pImpl.get(); }
@@ -24,4 +25,4 @@ namespace tiny_linker {
     };
 }
 
-#endif //PROJECT_EXECUTABLEFILE_H
+#endif //TINY_LINKER_EXECUTABLEFILE_H
