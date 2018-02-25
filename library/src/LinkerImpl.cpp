@@ -9,7 +9,8 @@ namespace tiny_linker {
         std::unique_ptr<tiny_linker::ExecutableFile> Link(std::vector<std::shared_ptr<ObjectFile>> objectFiles);
     };
 
-    std::unique_ptr<tiny_linker::ExecutableFile> LinkerImpl::Link(std::vector<std::shared_ptr<ObjectFile>> objectFiles) {
+    std::unique_ptr<tiny_linker::ExecutableFile>
+    LinkerImpl::Link(std::vector<std::shared_ptr<ObjectFile>> objectFiles) {
         size_t totalTextSectionSize = 0;
         for (const std::shared_ptr<tiny_linker::ObjectFile> &currentObjectFile : objectFiles) {
             totalTextSectionSize += currentObjectFile->GetTextSection()->GetSize();
@@ -29,9 +30,10 @@ namespace tiny_linker {
             offset += bytesSize;
         }
 
-        auto resultTextSection = std::make_shared<tiny_linker::TextSection>(std::move(resultTextSectionBytes), totalTextSectionSize);
+        auto resultTextSection = std::make_shared<tiny_linker::TextSection>(std::move(resultTextSectionBytes),
+                                                                            totalTextSectionSize);
 
-        for(size_t currentObjectFileIndex = 0; currentObjectFileIndex < objectFiles.size(); ++currentObjectFileIndex) {
+        for (size_t currentObjectFileIndex = 0; currentObjectFileIndex < objectFiles.size(); ++currentObjectFileIndex) {
             const auto &currentObjectFile = objectFiles[currentObjectFileIndex];
             for (const std::shared_ptr<llvm::ELF::Elf32_Rel> &relocation : currentObjectFile->GetRelocations()) {
                 // Relocation - это запись о том, адрес какого символа и куда нужно подставить.
@@ -58,7 +60,7 @@ namespace tiny_linker {
                     std::cout << "Symbol name is: " << symbolName << std::endl;
 
                     // Проходимся по всем объектным файлам...
-                    for(size_t objectFileIndex = 0; objectFileIndex < objectFiles.size(); ++objectFileIndex) {
+                    for (size_t objectFileIndex = 0; objectFileIndex < objectFiles.size(); ++objectFileIndex) {
                         const auto &objectFile = objectFiles[objectFileIndex];
                         // И проверяем, есть ли экпортированный символ с нужным нам именем.
                         for (const std::shared_ptr<llvm::ELF::Elf32_Sym> &symbol : objectFile->GetSymbols()) {
@@ -97,13 +99,18 @@ namespace tiny_linker {
                     const int textSectionDestinationOffset = offsets[currentObjectFileIndex];
                     const int textSectionSourceOffset = offsets[sourceObjectFileIndex.value()];
 
-                    const auto prevAddress = resultTextSection->ReadAddressAt(textSectionDestinationOffset+ relocation->r_offset);
+                    const auto prevAddress = resultTextSection->ReadAddressAt(
+                            textSectionDestinationOffset + relocation->r_offset);
 
                     const int sourceSymbolAddress = textSectionSourceOffset + sourceSymbol.value();
                     const int destinationAddress = textSectionDestinationOffset + relocation->r_offset;
                     const int newAddress = prevAddress + sourceSymbolAddress - destinationAddress;
 
                     std::cout << "--Previous address is " << prevAddress << std::endl;
+                    std::cout << "--Text section destination offset is " << textSectionDestinationOffset << std::endl;
+                    std::cout << "--Text section source offset is " << textSectionSourceOffset << std::endl;
+                    std::cout << "--Source symbol address is " << sourceSymbolAddress << std::endl;
+                    std::cout << "--Destination address is " << destinationAddress << std::endl;
                     std::cout << "--New address is " << newAddress << std::endl;
 
                     resultTextSection->WriteAddressAt(textSectionDestinationOffset + relocation->r_offset, newAddress);
