@@ -16,8 +16,8 @@ namespace tiny_linker {
         }
 
         auto resultTextSectionBytes = std::make_unique<char[]>(totalTextSectionSize);
-        size_t offset = 0;
-        std::vector<size_t> offsets;
+        int offset = 0;
+        std::vector<int> offsets;
 
         for (const std::shared_ptr<tiny_linker::ObjectFile> &currentObjectFile : objectFiles) {
             offsets.push_back(offset);
@@ -94,18 +94,19 @@ namespace tiny_linker {
                     //
                     // в качестве нового адреса используется предыдущий адрес + относительный адрес т.к. для вызова call
                     // необходим адрес со смещением относительно предыдущей операции, а не destination.
-                    size_t textSectionDestinationOffset = offsets[currentObjectFileIndex];
-                    size_t textSectionSourceOffset = offsets[sourceObjectFileIndex.value()];
+                    const int textSectionDestinationOffset = offsets[currentObjectFileIndex];
+                    const int textSectionSourceOffset = offsets[sourceObjectFileIndex.value()];
+
                     const auto prevAddress = resultTextSection->ReadAddressAt(textSectionDestinationOffset+ relocation->r_offset);
 
-                    const auto sourceSymbolAddress = textSectionSourceOffset + sourceSymbol.value();
-                    const auto destinationAddress = textSectionDestinationOffset + relocation->r_offset;
-                    const auto newAddress = prevAddress + sourceSymbolAddress - destinationAddress;
+                    const int sourceSymbolAddress = textSectionSourceOffset + sourceSymbol.value();
+                    const int destinationAddress = textSectionDestinationOffset + relocation->r_offset;
+                    const int newAddress = prevAddress + sourceSymbolAddress - destinationAddress;
 
                     std::cout << "--Previous address is " << prevAddress << std::endl;
                     std::cout << "--New address is " << newAddress << std::endl;
 
-                    resultTextSection->WriteAddressAt(textSectionDestinationOffset + relocation->r_offset, (int)newAddress);
+                    resultTextSection->WriteAddressAt(textSectionDestinationOffset + relocation->r_offset, newAddress);
                 }
             }
         }
