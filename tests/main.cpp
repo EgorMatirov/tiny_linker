@@ -41,7 +41,7 @@ TEST(object_file, read_symbols_names_correctly) {
     tiny_linker::ObjectFile objectFile(dataStream);
 
     EXPECT_EQ(objectFile.GetSymbols().size(), 6);
-    EXPECT_TRUE(objectFile.GetStringTableHeader());
+    EXPECT_TRUE(objectFile.GetStringTableHeader() != nullptr);
 
     EXPECT_EQ(objectFile.GetStringTableEntry(objectFile.GetSymbols()[0]->st_name), "");
     EXPECT_EQ(objectFile.GetStringTableEntry(objectFile.GetSymbols()[1]->st_name), "helloworld.asm");
