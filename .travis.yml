@@ -2,12 +2,17 @@ language: cpp
 
 addons:
   apt:
+    sources:
+      - llvm-toolchain-trusty-5.0 # clang-5.0
     packages:
       - llvm-dev
+      - clang-5.0
 
 before_script:
   - export CC=clang-5.0
   - export CXX=clang++-5.0
+  - $CC --version
+  - $CXX --version
 
 script:
   - mkdir build && cd build
