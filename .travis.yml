@@ -20,7 +20,7 @@ before_script:
   - $CXX --version
 
 script:
-  - cd /tmp && cmake /usr/src/gtest && make -j3 && sudo mv libg* /usr/lib/ && cd - # build gtest
+  - cd /tmp && cmake -DBUILD_SHARED_LIBS=ON /usr/src/gtest && make -j3 && sudo mv libg* /usr/lib/ && cd - # build gtest
   - mkdir build && cd build
   - cmake ../
   - make -j3
