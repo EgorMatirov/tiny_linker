@@ -4,9 +4,12 @@ addons:
   apt:
     sources:
       - llvm-toolchain-trusty-5.0 # clang-5.0
+      - ubuntu-toolchain-r-test  # gcc
     packages:
       - llvm-dev
       - clang-5.0
+      - gcc-7
+      - g++-7
 
 before_script:
   - export CC=clang-5.0
