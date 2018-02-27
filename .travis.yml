@@ -5,6 +5,10 @@ addons:
     packages:
       - llvm-dev
 
+before_script:
+  - export CC=clang-5.0
+  - export CXX=clang++-5.0
+
 script:
   - mkdir build && cd build
   - cmake ../
