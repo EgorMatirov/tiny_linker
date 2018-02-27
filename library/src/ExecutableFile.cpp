@@ -3,7 +3,7 @@
 #include "ExecutableFileImpl.cpp"
 
 namespace tiny_linker {
-    void ExecutableFile::Write(std::fstream &stream) {
+    void ExecutableFile::Write(std::ostream &stream) {
         Pimpl()->Write(stream);
     }
 

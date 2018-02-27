@@ -2,36 +2,26 @@
 #include <tiny_linker/ExecutableFile.h>
 #include <optional>
 #include <iostream>
+#include <numeric>
 
 namespace tiny_linker {
     class LinkerImpl {
     public:
         std::unique_ptr<tiny_linker::ExecutableFile> Link(std::vector<std::shared_ptr<ObjectFile>> objectFiles);
+
+        std::vector<int> GetOffsets(const std::vector<std::shared_ptr<ObjectFile>> &objectFiles) const;
+
+        std::shared_ptr<TextSection>
+        CreateResultTextSection(const std::vector<std::shared_ptr<ObjectFile>> &objectFiles) const;
     };
 
     std::unique_ptr<tiny_linker::ExecutableFile>
     LinkerImpl::Link(std::vector<std::shared_ptr<ObjectFile>> objectFiles) {
-        size_t totalTextSectionSize = 0;
-        for (const std::shared_ptr<tiny_linker::ObjectFile> &currentObjectFile : objectFiles) {
-            totalTextSectionSize += currentObjectFile->GetTextSection()->GetSize();
-        }
 
-        auto resultTextSectionBytes = std::make_unique<char[]>(totalTextSectionSize);
-        int offset = 0;
-        std::vector<int> offsets;
-
-        for (const std::shared_ptr<tiny_linker::ObjectFile> &currentObjectFile : objectFiles) {
-            offsets.push_back(offset);
-            auto currentTextSection = currentObjectFile->GetTextSection();
-            auto bytesBegin = currentTextSection->GetBytes().get();
-            auto bytesSize = currentTextSection->GetSize();
-
-            std::copy(bytesBegin, bytesBegin + bytesSize, resultTextSectionBytes.get() + offset);
-            offset += bytesSize;
-        }
-
-        auto resultTextSection = std::make_shared<tiny_linker::TextSection>(std::move(resultTextSectionBytes),
-                                                                            totalTextSectionSize);
+        // Создаём результирующую .text секцию - это .text секции всех объектныхх файлов, склееные в одну.
+        auto resultTextSection = CreateResultTextSection(objectFiles);
+        // Смещения .text секций конкретных объектных файлов относительно начала результирующей .text секции.
+        auto offsets = GetOffsets(objectFiles);
 
         for (size_t currentObjectFileIndex = 0; currentObjectFileIndex < objectFiles.size(); ++currentObjectFileIndex) {
             const auto &currentObjectFile = objectFiles[currentObjectFileIndex];
@@ -56,7 +46,7 @@ namespace tiny_linker {
                 } else if (symbolBinding == llvm::ELF::STB_GLOBAL) {
                     // Импортирование символа, например. функции.
                     // Получаем имя нужного символа
-                    const auto symbolName = currentObjectFile->GetStringTableEntry(destinationSymbol->st_name);
+                    const auto &symbolName = currentObjectFile->GetStringTableEntry(destinationSymbol->st_name);
                     std::cout << "Symbol name is: " << symbolName << std::endl;
 
                     // Проходимся по всем объектным файлам...
@@ -64,7 +54,7 @@ namespace tiny_linker {
                         const auto &objectFile = objectFiles[objectFileIndex];
                         // И проверяем, есть ли экпортированный символ с нужным нам именем.
                         for (const std::shared_ptr<llvm::ELF::Elf32_Sym> &symbol : objectFile->GetSymbols()) {
-                            const auto sourceSymbolName = objectFile->GetStringTableEntry(symbol->st_name);
+                            const auto &sourceSymbolName = objectFile->GetStringTableEntry(symbol->st_name);
                             if (sourceSymbolName == symbolName && symbol->st_shndx != llvm::ELF::SHN_UNDEF &&
                                 symbol->getBinding() == llvm::ELF::STB_GLOBAL) {
                                 sourceObjectFileIndex = objectFileIndex;
@@ -129,12 +119,46 @@ namespace tiny_linker {
             }
         }
 
-        if(!entryPointOffset)
-        {
+        if (!entryPointOffset) {
             std::cout << "Cannot find entry point!";
             return nullptr;
         }
 
         return std::make_unique<tiny_linker::ExecutableFile>(resultTextSection, entryPointOffset.value());
+    }
+
+    std::shared_ptr<TextSection>
+    LinkerImpl::CreateResultTextSection(const std::vector<std::shared_ptr<ObjectFile>> &objectFiles) const {
+        size_t totalTextSectionSize = std::accumulate(objectFiles.begin(), objectFiles.end(), (size_t) 0,
+                                                      [](size_t prev, auto objectFile) {
+                                                          return prev + objectFile->GetTextSection()->GetSize();
+                                                      }
+        );
+
+        auto resultTextSectionBytes = std::make_unique<char[]>(totalTextSectionSize);
+
+        { // Копируем содержимое всех .text секций в result
+            int offset = 0;
+            for (const std::shared_ptr<ObjectFile> &currentObjectFile : objectFiles) {
+                auto currentTextSection = currentObjectFile->GetTextSection();
+                auto bytesBegin = currentTextSection->GetBytes().get();
+                auto bytesSize = currentTextSection->GetSize();
+
+                std::copy(bytesBegin, bytesBegin + bytesSize, resultTextSectionBytes.get() + offset);
+                offset += bytesSize;
+            }
+        }
+
+        return std::make_shared<TextSection>(move(resultTextSectionBytes), totalTextSectionSize);
+    }
+
+    std::vector<int> LinkerImpl::GetOffsets(const std::vector<std::shared_ptr<ObjectFile>> &objectFiles) const {
+        std::vector<int> offsets;
+        int offset = 0;
+        for (const std::shared_ptr<ObjectFile> &currentObjectFile : objectFiles) {
+            offsets.push_back(offset);
+            offset += currentObjectFile->GetTextSection()->GetSize();
+        }
+        return offsets;
     }
 }

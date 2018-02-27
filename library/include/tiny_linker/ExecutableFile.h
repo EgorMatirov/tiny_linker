@@ -14,7 +14,7 @@ namespace tiny_linker {
     public:
         explicit ExecutableFile(std::shared_ptr<tiny_linker::TextSection> textSection, size_t entryPointOffset);
 
-        void Write(std::fstream &stream);
+        void Write(std::ostream &stream);
 
     private:
         const ExecutableFileImpl *Pimpl() const { return m_pImpl.get(); }
