@@ -18,7 +18,7 @@ namespace tiny_linker {
     std::unique_ptr<tiny_linker::ExecutableFile>
     LinkerImpl::Link(std::vector<std::shared_ptr<ObjectFile>> objectFiles) {
 
-        // Создаём результирующую .text секцию - это .text секции всех объектныхх файлов, склееные в одну.
+        // Создаём результирующую .text секцию - это .text секции всех объектных файлов, склееные в одну.
         auto resultTextSection = CreateResultTextSection(objectFiles);
         // Смещения .text секций конкретных объектных файлов относительно начала результирующей .text секции.
         auto offsets = GetOffsets(objectFiles);
