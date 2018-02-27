@@ -14,13 +14,13 @@ addons:
       - libgtest-dev
 
 before_script:
-  - cd /usr/src/gtest && sudo cmake . && sudo make && sudo mv libg* /usr/lib/ && cd -
   - export CC=clang-5.0
   - export CXX=clang++-5.0
   - $CC --version
   - $CXX --version
 
 script:
+  - cd /tmp && cmake /usr/src/gtest && make -j3 && sudo mv libg* /usr/lib/ && cd - # build gtest
   - mkdir build && cd build
   - cmake ../
   - make -j3
