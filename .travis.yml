@@ -24,4 +24,5 @@ script:
   - mkdir build && cd build
   - cmake ../
   - make -j3
-  - make test
+  - cd tests
+  - ./tiny_linker_tests
