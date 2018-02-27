@@ -10,6 +10,7 @@ addons:
       - clang-5.0
       - gcc-7
       - g++-7
+      - libgtest-dev
 
 before_script:
   - export CC=clang-5.0
