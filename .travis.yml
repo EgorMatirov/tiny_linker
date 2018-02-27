@@ -1,4 +1,10 @@
 language: cpp
+
+addons:
+  apt:
+    packages:
+      - llvm-dev
+
 script:
   - mkdir build && cd build
   - cmake ../
