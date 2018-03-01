@@ -49,7 +49,7 @@ namespace tiny_linker {
 
         stream.write((char *) &elfHeader, sizeof(elfHeader));
 
-        const llvm::ELF::Elf32_Word size = (llvm::ELF::Elf32_Word) TextSection->GetSize() + headersSize;
+        const llvm::ELF::Elf32_Word size = (llvm::ELF::Elf32_Word) TextSection->GetSize() + headersSize + OtherSections.size(); // TODO: create other sections correctly
 
         llvm::ELF::Elf32_Phdr programHeader{};
         // Данный сегмент - загружаемый - его необходимо загрузить в память
