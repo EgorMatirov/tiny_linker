@@ -3,6 +3,7 @@
 
 #include <fstream>
 #include <memory>
+#include <vector>
 
 #include <llvm/BinaryFormat/ELF.h>
 
@@ -12,7 +13,8 @@ namespace tiny_linker {
 
     class ExecutableFile {
     public:
-        explicit ExecutableFile(std::shared_ptr<tiny_linker::TextSection> textSection, size_t entryPointOffset);
+        explicit ExecutableFile(std::shared_ptr<tiny_linker::TextSection> textSection, std::vector<char> otherSections, size_t entryPointOffset);
+        static int SizeOfHeaders();
 
         void Write(std::ostream &stream);
 

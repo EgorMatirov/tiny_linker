@@ -23,6 +23,8 @@ namespace tiny_linker {
         // Смещения .text секций конкретных объектных файлов относительно начала результирующей .text секции.
         auto offsets = GetOffsets(objectFiles);
 
+        std::vector<char> resultDataSection;
+
         for (size_t currentObjectFileIndex = 0; currentObjectFileIndex < objectFiles.size(); ++currentObjectFileIndex) {
             const auto &currentObjectFile = objectFiles[currentObjectFileIndex];
             for (const std::shared_ptr<llvm::ELF::Elf32_Rel> &relocation : currentObjectFile->GetRelocations()) {
@@ -39,10 +41,20 @@ namespace tiny_linker {
                 // Объектный файл, из которого импортирован символ
                 std::optional<std::shared_ptr<tiny_linker::ObjectFile>> sourceObjectFile;
                 std::optional<size_t> sourceObjectFileIndex;
+                std::optional<size_t> sourceSectionOffset;
 
+                std::cout << "Symbol type is " << (int)symbolType << " binding is " << (int)symbolBinding << std::endl;
                 if (symbolBinding == llvm::ELF::STB_LOCAL && symbolType == llvm::ELF::STT_SECTION) {
                     // Нужно сделать relocation для секции. Например, перемещение секции с данными.
-                    continue;
+                    // Получаем имя нужного символа
+
+                    auto sectionIndex = destinationSymbol->st_shndx;
+                    auto sectionBytes = currentObjectFile->GetSectionByIndex(sectionIndex);
+
+                    sourceSectionOffset =
+                            resultDataSection.size() + ExecutableFile::SizeOfHeaders() + resultTextSection->GetSize();
+                    std::copy(sectionBytes.begin(), sectionBytes.end(), std::back_inserter(resultDataSection));
+
                 } else if (symbolBinding == llvm::ELF::STB_GLOBAL) {
                     // Импортирование символа, например. функции.
                     // Получаем имя нужного символа
@@ -64,11 +76,6 @@ namespace tiny_linker {
                     }
                 }
 
-                if (!sourceSymbol || !sourceObjectFileIndex) {
-                    std::cout << "--Symbol was not found!" << std::endl;
-                    continue;
-                }
-
                 const auto type = relocation->getType();
                 // От типа зависит, как будет вычисляться адрес после relocation
                 if (type == llvm::ELF::R_386_PC32) { // Записываем новый ОТНОСИТЕЛЬНЫЙ адрес.
@@ -86,6 +93,12 @@ namespace tiny_linker {
                     //
                     // в качестве нового адреса используется предыдущий адрес + относительный адрес т.к. для вызова call
                     // необходим адрес со смещением относительно предыдущей операции, а не destination.
+
+                    if (!sourceSymbol || !sourceObjectFileIndex) {
+                        std::cout << "--Symbol was not found!" << std::endl;
+                        continue;
+                    }
+
                     const int textSectionDestinationOffset = offsets[currentObjectFileIndex];
                     const int textSectionSourceOffset = offsets[sourceObjectFileIndex.value()];
 
@@ -104,6 +117,15 @@ namespace tiny_linker {
                     std::cout << "--New address is " << newAddress << std::endl;
 
                     resultTextSection->WriteAddressAt(textSectionDestinationOffset + relocation->r_offset, newAddress);
+                } else if (type == llvm::ELF::R_386_32) {
+                    if (!sourceSectionOffset) {
+                        std::cout << "--Offset was not found!" << std::endl;
+                        continue;
+                    }
+
+                    const int textSectionDestinationOffset = offsets[currentObjectFileIndex];
+                    resultTextSection->WriteAddressAt(textSectionDestinationOffset + relocation->r_offset,
+                                                      (int) sourceSectionOffset.value());
                 }
             }
         }
@@ -124,7 +146,7 @@ namespace tiny_linker {
             return nullptr;
         }
 
-        return std::make_unique<tiny_linker::ExecutableFile>(resultTextSection, entryPointOffset.value());
+        return std::make_unique<tiny_linker::ExecutableFile>(resultTextSection, resultDataSection, entryPointOffset.value());
     }
 
     std::shared_ptr<TextSection>

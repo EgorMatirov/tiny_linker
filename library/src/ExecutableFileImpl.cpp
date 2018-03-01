@@ -7,12 +7,17 @@ namespace tiny_linker {
 
     class ExecutableFileImpl {
     public:
-        explicit ExecutableFileImpl(std::shared_ptr<tiny_linker::TextSection> textSection, size_t entryPointOffset);
+        explicit ExecutableFileImpl(std::shared_ptr<tiny_linker::TextSection> textSection,
+                                                        std::vector<char> otherSections,
+                                                        size_t entryPointOffset);
 
         void Write(std::ostream &stream);
 
+        static int SizeOfHeaders();
+
     private:
         std::shared_ptr<tiny_linker::TextSection> TextSection;
+        std::vector<char> OtherSections;
         size_t EntryPointOffset;
     };
 
@@ -68,9 +73,17 @@ namespace tiny_linker {
         stream.write((char *) &programHeader, sizeof(programHeader));
 
         stream.write(TextSection->GetBytes().get(), TextSection->GetSize());
+        stream.write(&OtherSections[0], OtherSections.size());
     }
 
     ExecutableFileImpl::ExecutableFileImpl(std::shared_ptr<tiny_linker::TextSection> textSection,
+                                           std::vector<char> otherSections,
                                            size_t entryPointOffset)
-            : TextSection(std::move(textSection)), EntryPointOffset(entryPointOffset) {}
+            : TextSection(std::move(textSection)),
+              OtherSections(std::move(otherSections)),
+              EntryPointOffset(entryPointOffset) {}
+
+    int ExecutableFileImpl::SizeOfHeaders() {
+        return sizeof(llvm::ELF::Elf32_Ehdr) + sizeof(llvm::ELF::Elf32_Phdr);
+    }
 }

@@ -25,4 +25,8 @@ namespace tiny_linker {
     std::shared_ptr<TextSection> ObjectFile::GetTextSection() const {
         return Pimpl()->GetTextSection();
     }
+
+    std::vector<char> ObjectFile::GetSectionByIndex(const int index) {
+        return Pimpl()->GetSectionByIndex(index);
+    }
 }

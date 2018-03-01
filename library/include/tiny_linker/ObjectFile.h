@@ -22,6 +22,8 @@ namespace tiny_linker {
 
         std::shared_ptr<TextSection> GetTextSection() const;
 
+        std::vector<char> GetSectionByIndex(const int index);
+
         // Возращает строчку по индексу в таблице строк
         std::string GetStringTableEntry(int offset);
 

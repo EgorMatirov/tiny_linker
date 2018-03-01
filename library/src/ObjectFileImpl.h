@@ -13,9 +13,9 @@ namespace tiny_linker {
         std::shared_ptr<llvm::ELF::Elf32_Shdr> StringTableHeader = nullptr;
         std::shared_ptr<std::ifstream> DataStream = nullptr;
         std::shared_ptr<TextSection> TextSection;
+        llvm::ELF::Elf32_Off sectionHeaderTableOffset;
 
-        std::shared_ptr<llvm::ELF::Elf32_Shdr>
-        ReadSectionHeaderAt(llvm::ELF::Elf32_Off sectionHeaderTableOffset, int index);
+        std::shared_ptr<llvm::ELF::Elf32_Shdr> ReadSectionHeaderAt(int index);
 
         template<typename TEntry>
         void SetEntries(const std::shared_ptr<llvm::ELF::Elf32_Shdr> &header,
@@ -45,6 +45,8 @@ namespace tiny_linker {
 
         // Возращает строчку по смещению в таблице строк
         std::string GetStringTableEntry(int offset);
+
+        std::vector<char> GetSectionByIndex(int index);
     };
 }
 
