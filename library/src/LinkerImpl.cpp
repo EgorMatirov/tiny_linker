@@ -43,7 +43,8 @@ namespace tiny_linker {
                 std::optional<size_t> sourceObjectFileIndex;
                 std::optional<size_t> sourceSectionOffset;
 
-                std::cout << "Symbol type is " << (int)symbolType << " binding is " << (int)symbolBinding << std::endl;
+                std::cout << "Symbol type is " << (int) symbolType << " binding is " << (int) symbolBinding
+                          << std::endl;
                 if (symbolBinding == llvm::ELF::STB_LOCAL && symbolType == llvm::ELF::STT_SECTION) {
                     // Нужно сделать relocation для секции. Например, перемещение секции с данными.
                     // Получаем имя нужного символа
@@ -52,7 +53,8 @@ namespace tiny_linker {
                     auto sectionBytes = currentObjectFile->GetSectionByIndex(sectionIndex);
 
                     sourceSectionOffset =
-                            resultDataSection.size() + ExecutableFile::SizeOfHeaders() + resultTextSection->GetSize();
+                            resultDataSection.size() + ExecutableFile::SizeOfHeaders() + resultTextSection->GetSize() +
+                            0x8048000; // TODO use constant from executable file
                     std::copy(sectionBytes.begin(), sectionBytes.end(), std::back_inserter(resultDataSection));
 
                 } else if (symbolBinding == llvm::ELF::STB_GLOBAL) {
@@ -146,7 +148,8 @@ namespace tiny_linker {
             return nullptr;
         }
 
-        return std::make_unique<tiny_linker::ExecutableFile>(resultTextSection, resultDataSection, entryPointOffset.value());
+        return std::make_unique<tiny_linker::ExecutableFile>(resultTextSection, resultDataSection,
+                                                             entryPointOffset.value());
     }
 
     std::shared_ptr<TextSection>
