@@ -14,6 +14,7 @@ namespace tiny_linker {
         void Write(std::ostream &stream);
 
         static int SizeOfHeaders();
+        static int GetVirtualOffset();
 
     private:
         std::shared_ptr<tiny_linker::TextSection> TextSection;
@@ -24,7 +25,7 @@ namespace tiny_linker {
     void ExecutableFileImpl::Write(std::ostream &stream) {
         // Заголовок ELF + специфичная информация, которую менять не понадобится.
         char magic[] = {0x7f, 0x45, 0x4c, 0x46, 0x01, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-        llvm::ELF::Elf32_Addr entry = 0x8048000; // Смещение в виртуальной памяти, по которому будет расположен бинарник.
+        llvm::ELF::Elf32_Addr entry = GetVirtualOffset(); // Смещение в виртуальной памяти, по которому будет расположен бинарник.
 
         llvm::ELF::Elf32_Ehdr elfHeader{};
         memcpy(elfHeader.e_ident, magic, llvm::ELF::EI_NIDENT);
@@ -85,5 +86,9 @@ namespace tiny_linker {
 
     int ExecutableFileImpl::SizeOfHeaders() {
         return sizeof(llvm::ELF::Elf32_Ehdr) + sizeof(llvm::ELF::Elf32_Phdr);
+    }
+
+    int ExecutableFileImpl::GetVirtualOffset() {
+        return 0x8048000;
     }
 }

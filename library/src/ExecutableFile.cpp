@@ -15,4 +15,8 @@ namespace tiny_linker {
         return ExecutableFileImpl::SizeOfHeaders();
     }
 
+    int ExecutableFile::GetVirtualOffset() {
+        return ExecutableFileImpl::GetVirtualOffset();
+    }
+
 }

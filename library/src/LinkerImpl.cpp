@@ -54,7 +54,7 @@ namespace tiny_linker {
 
                     sourceSectionOffset =
                             resultDataSection.size() + ExecutableFile::SizeOfHeaders() + resultTextSection->GetSize() +
-                            0x8048000; // TODO use constant from executable file
+                            ExecutableFile::GetVirtualOffset();
                     std::copy(sectionBytes.begin(), sectionBytes.end(), std::back_inserter(resultDataSection));
 
                 } else if (symbolBinding == llvm::ELF::STB_GLOBAL) {

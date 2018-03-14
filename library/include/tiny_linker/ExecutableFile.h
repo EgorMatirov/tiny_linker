@@ -17,6 +17,7 @@ namespace tiny_linker {
         static int SizeOfHeaders();
 
         void Write(std::ostream &stream);
+        static int GetVirtualOffset();
 
     private:
         const ExecutableFileImpl *Pimpl() const { return m_pImpl.get(); }
