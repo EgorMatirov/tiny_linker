@@ -3,6 +3,7 @@
 #include <optional>
 #include <iostream>
 #include <numeric>
+#include <map>
 
 namespace tiny_linker {
     class LinkerImpl {
@@ -13,6 +14,14 @@ namespace tiny_linker {
 
         std::shared_ptr<TextSection>
         CreateResultTextSection(const std::vector<std::shared_ptr<ObjectFile>> &objectFiles) const;
+
+        std::map<std::string, llvm::ELF::Elf32_Addr>
+        GetResultSymbolAddresses(const std::vector<std::shared_ptr<ObjectFile>> &objectFiles,
+                                 const std::vector<int> &offsets) const;
+
+        std::optional<size_t>
+        GetEntryPoint(const std::vector<std::shared_ptr<ObjectFile>> &objectFiles,
+                      const std::vector<int> &offsets) const;
     };
 
     std::unique_ptr<tiny_linker::ExecutableFile>
@@ -22,6 +31,8 @@ namespace tiny_linker {
         auto resultTextSection = CreateResultTextSection(objectFiles);
         // Смещения .text секций конкретных объектных файлов относительно начала результирующей .text секции.
         auto offsets = GetOffsets(objectFiles);
+        // Адреса экспортированных символов в результатирующей .text секции.
+        auto symbolAddresses = GetResultSymbolAddresses(objectFiles, offsets);
 
         for (size_t currentObjectFileIndex = 0; currentObjectFileIndex < objectFiles.size(); ++currentObjectFileIndex) {
             const auto &currentObjectFile = objectFiles[currentObjectFileIndex];
@@ -37,8 +48,7 @@ namespace tiny_linker {
                 std::optional<llvm::ELF::Elf32_Addr> sourceSymbol; // Смещение импортированного символа
 
                 // Объектный файл, из которого импортирован символ
-                std::optional<std::shared_ptr<tiny_linker::ObjectFile>> sourceObjectFile;
-                std::optional<size_t> sourceObjectFileIndex;
+                std::optional<llvm::ELF::Elf32_Addr> sourceSymbolAddress;
 
                 if (symbolBinding == llvm::ELF::STB_LOCAL && symbolType == llvm::ELF::STT_SECTION) {
                     // Нужно сделать relocation для секции. Например, перемещение секции с данными.
@@ -49,22 +59,10 @@ namespace tiny_linker {
                     const auto &symbolName = currentObjectFile->GetStringTableEntry(destinationSymbol->st_name);
                     std::cout << "Symbol name is: " << symbolName << std::endl;
 
-                    // Проходимся по всем объектным файлам...
-                    for (size_t objectFileIndex = 0; objectFileIndex < objectFiles.size(); ++objectFileIndex) {
-                        const auto &objectFile = objectFiles[objectFileIndex];
-                        // И проверяем, есть ли экпортированный символ с нужным нам именем.
-                        for (const std::shared_ptr<llvm::ELF::Elf32_Sym> &symbol : objectFile->GetSymbols()) {
-                            const auto &sourceSymbolName = objectFile->GetStringTableEntry(symbol->st_name);
-                            if (sourceSymbolName == symbolName && symbol->st_shndx != llvm::ELF::SHN_UNDEF &&
-                                symbol->getBinding() == llvm::ELF::STB_GLOBAL) {
-                                sourceObjectFileIndex = objectFileIndex;
-                                sourceSymbol = symbol->st_value;
-                            }
-                        }
-                    }
+                    sourceSymbolAddress = symbolAddresses[symbolName];
                 }
 
-                if (!sourceSymbol || !sourceObjectFileIndex) {
+                if (!sourceSymbolAddress) {
                     std::cout << "--Symbol was not found!" << std::endl;
                     continue;
                 }
@@ -87,19 +85,16 @@ namespace tiny_linker {
                     // в качестве нового адреса используется предыдущий адрес + относительный адрес т.к. для вызова call
                     // необходим адрес со смещением относительно предыдущей операции, а не destination.
                     const int textSectionDestinationOffset = offsets[currentObjectFileIndex];
-                    const int textSectionSourceOffset = offsets[sourceObjectFileIndex.value()];
 
                     const auto prevAddress = resultTextSection->ReadAddressAt(
                             textSectionDestinationOffset + relocation->r_offset);
 
-                    const int sourceSymbolAddress = textSectionSourceOffset + sourceSymbol.value();
                     const int destinationAddress = textSectionDestinationOffset + relocation->r_offset;
-                    const int newAddress = prevAddress + sourceSymbolAddress - destinationAddress;
+                    const int newAddress = prevAddress + sourceSymbolAddress.value() - destinationAddress;
 
                     std::cout << "--Previous address is " << prevAddress << std::endl;
                     std::cout << "--Text section destination offset is " << textSectionDestinationOffset << std::endl;
-                    std::cout << "--Text section source offset is " << textSectionSourceOffset << std::endl;
-                    std::cout << "--Source symbol address is " << sourceSymbolAddress << std::endl;
+                    std::cout << "--Source symbol address is " << sourceSymbolAddress.value() << std::endl;
                     std::cout << "--Destination address is " << destinationAddress << std::endl;
                     std::cout << "--New address is " << newAddress << std::endl;
 
@@ -108,6 +103,19 @@ namespace tiny_linker {
             }
         }
 
+        std::optional<size_t> entryPointOffset = GetEntryPoint(objectFiles, offsets);
+
+        if (!entryPointOffset) {
+            std::cout << "Cannot find entry point!";
+            return nullptr;
+        }
+
+        return std::make_unique<tiny_linker::ExecutableFile>(resultTextSection, entryPointOffset.value());
+    }
+
+    std::optional<size_t>
+    LinkerImpl::GetEntryPoint(const std::vector<std::shared_ptr<ObjectFile>> &objectFiles,
+                              const std::vector<int> &offsets) const {
         std::optional<size_t> entryPointOffset;
         for (size_t currentObjectFileIndex = 0; currentObjectFileIndex < objectFiles.size(); ++currentObjectFileIndex) {
             const auto &currentObjectFile = objectFiles[currentObjectFileIndex];
@@ -118,13 +126,25 @@ namespace tiny_linker {
                 }
             }
         }
+        return entryPointOffset;
+    }
 
-        if (!entryPointOffset) {
-            std::cout << "Cannot find entry point!";
-            return nullptr;
+    std::map<std::string, llvm::ELF::Elf32_Addr>
+    LinkerImpl::GetResultSymbolAddresses(const std::vector<std::shared_ptr<ObjectFile>> &objectFiles,
+                                         const std::vector<int> &offsets) const {
+        std::map<std::__cxx11::string, llvm::ELF::Elf32_Addr> symbolAddresses;
+
+        for (size_t currentObjectFileIndex = 0; currentObjectFileIndex < objectFiles.size(); ++currentObjectFileIndex) {
+            const auto &currentObjectFile = objectFiles[currentObjectFileIndex];
+            for (const std::shared_ptr<llvm::ELF::Elf32_Sym> &symbol : currentObjectFile->GetSymbols()) {
+                if (symbol->st_shndx != llvm::ELF::SHN_UNDEF && symbol->getBinding() == llvm::ELF::STB_GLOBAL) {
+                    const auto &sourceSymbolName = currentObjectFile->GetStringTableEntry(symbol->st_name);
+                    symbolAddresses.insert({sourceSymbolName, offsets[currentObjectFileIndex] + symbol->st_value});
+                }
+            }
         }
 
-        return std::make_unique<tiny_linker::ExecutableFile>(resultTextSection, entryPointOffset.value());
+        return symbolAddresses;
     }
 
     std::shared_ptr<TextSection>
